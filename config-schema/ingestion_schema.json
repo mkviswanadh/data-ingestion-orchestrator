@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Ingestion Pipeline Schema",
+  "type": "object",
+  "required": ["pipeline_name", "source", "target", "load_type"],
+  "properties": {
+    "pipeline_name": {"type": "string"},
+    "source": {
+      "type": "object",
+      "required": ["type", "host", "port", "database", "table"],
+      "properties": {
+        "type": {"type": "string"},
+        "host": {"type": "string"},
+        "port": {"type": "integer"},
+        "database": {"type": "string"},
+        "table": {"type": "string"}
+      }
+    },
+    "target": {
+      "type": "object",
+      "required": ["type", "host", "port", "database", "table"],
+      "properties": {
+        "type": {"type": "string"},
+        "host": {"type": "string"},
+        "port": {"type": "integer"},
+        "database": {"type": "string"},
+        "table": {"type": "string"}
+      }
+    },
+    "load_type": {
+      "type": "string",
+      "enum": ["full", "incremental"]
+    }
+  }
+}
+

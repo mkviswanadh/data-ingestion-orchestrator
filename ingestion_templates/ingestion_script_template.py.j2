@@ -1,0 +1,30 @@
+"""
+Auto-generated ingestion script: {{ pipeline_name }}
+"""
+
+from sqlalchemy import create_engine
+import pandas as pd
+
+def run():
+    # Source config
+    src = {{ source }}
+    tgt = {{ target }}
+
+    src_conn_str = f"{src['type']}://{src['user']}:{src['password']}@{src['host']}:{src['port']}/{src['database']}"
+    tgt_conn_str = f"{tgt['type']}://{tgt['user']}:{tgt['password']}@{tgt['host']}:{tgt['port']}/{tgt['database']}"
+
+    src_engine = create_engine(src_conn_str)
+    tgt_engine = create_engine(tgt_conn_str)
+
+    df = pd.read_sql(f"SELECT * FROM {src['table']}", src_engine)
+
+    if "{{ load_type }}" == "incremental":
+        # Implement incremental logic ...
+        pass
+
+    # Full load or after incremental extraction
+    df.to_sql("{{ target['table'] }}", tgt_engine, if_exists="replace", index=False)
+
+if __name__ == "__main__":
+    run()
+
