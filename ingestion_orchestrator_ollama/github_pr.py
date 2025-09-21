@@ -1,48 +1,78 @@
+# github_pr.py
+
 import requests
 import base64
-from config import GITHUB_API_URL, GITHUB_REPO, GITHUB_TOKEN, GITHUB_BRANCH_PREFIX, GITHUB_MAIN_BRANCH
+import os
+from config import GITHUB_OWNER, GITHUB_API_URL, GITHUB_REPO, GITHUB_TOKEN, GITHUB_BRANCH_PREFIX, GITHUB_MAIN_BRANCH
 
-HEADERS = {
-    "Authorization": f"Bearer {GITHUB_TOKEN}",
-    "Accept": "application/vnd.github.v3+json"
-}
 
-def create_branch(branch_name, base_sha):
-    requests.post(
-        f"{GITHUB_API_URL}/repos/{GITHUB_REPO}/git/refs",
-        headers=HEADERS,
-        json={"ref": f"refs/heads/{branch_name}", "sha": base_sha}
+def create_github_pr(dag_name: str, dag_code: str) -> str:
+    owner = GITHUB_OWNER
+    repo = GITHUB_REPO
+    token = GITHUB_TOKEN
+    branch = GITHUB_MAIN_BRANCH
+    GITHUB_API = GITHUB_API_URL
+    
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github+json"
+    }
+
+    # ✅ 1. Get latest commit SHA from the branch (safe method)
+    print(f"🔍 Fetching base commit SHA from branch '{branch}'...")
+    res = requests.get(f"{GITHUB_API}/repos/{owner}/{repo}/branches/{branch}", headers=headers)
+    
+    if res.status_code != 200:
+        raise Exception(f"❌ Failed to fetch branch info: {res.status_code} - {res.json().get('message')}")
+    
+    base_sha = res.json()["commit"]["sha"]
+
+    # ✅ 2. Create a new branch
+    pr_branch = f"{dag_name}_branch"
+    print(f"🌿 Creating new branch: {pr_branch}")
+    data = {
+        "ref": f"refs/heads/{pr_branch}",
+        "sha": base_sha
+    }
+    res = requests.post(f"{GITHUB_API}/repos/{owner}/{repo}/git/refs", json=data, headers=headers)
+    
+    if res.status_code not in (200, 201):
+        raise Exception(f"❌ Failed to create branch: {res.status_code} - {res.json().get('message')}")
+
+    # ✅ 3. Commit the DAG file to the new branch
+    dag_path = f"dags/{dag_name}.py"
+    print(f"📄 Committing DAG to {dag_path}")
+    encoded_content = base64.b64encode(dag_code.encode()).decode()
+
+    data = {
+        "message": f"Add DAG: {dag_name}",
+        "content": encoded_content,
+        "branch": pr_branch
+    }
+
+    res = requests.put(
+        f"{GITHUB_API}/repos/{owner}/{repo}/contents/{dag_path}",
+        json=data,
+        headers=headers
     )
 
-def upload_dag(branch, dag_path, content, message):
-    b64_content = base64.b64encode(content.encode()).decode()
-    url = f"{GITHUB_API_URL}/repos/{GITHUB_REPO}/contents/{dag_path}"
-    return requests.put(url, headers=HEADERS, json={
-        "message": message,
-        "content": b64_content,
-        "branch": branch
-    })
+    if res.status_code not in (200, 201):
+        raise Exception(f"❌ Failed to commit DAG: {res.status_code} - {res.json().get('message')}")
 
-def create_pull_request(branch, dag_name):
-    pr = requests.post(
-        f"{GITHUB_API_URL}/repos/{GITHUB_REPO}/pulls",
-        headers=HEADERS,
-        json={
-            "title": f"[Auto DAG] {dag_name}",
-            "head": branch,
-            "base": GITHUB_MAIN_BRANCH,
-            "body": f"Auto-generated DAG for `{dag_name}` by LLM orchestrator."
-        }
-    )
-    return pr.json().get("html_url", "PR creation failed")
+    # ✅ 4. Create Pull Request
+    print(f"📤 Creating Pull Request...")
+    data = {
+        "title": f"[DAG] {dag_name}",
+        "head": pr_branch,
+        "base": branch,
+        "body": f"Auto-generated DAG for `{dag_name}`"
+    }
 
-def create_github_pr(dag_name, dag_code):
-    # Get base SHA of main
-    res = requests.get(f"{GITHUB_API_URL}/repos/{GITHUB_REPO}/git/ref/heads/{GITHUB_MAIN_BRANCH}", headers=HEADERS)
-    base_sha = res.json()["object"]["sha"]
-    branch = f"{GITHUB_BRANCH_PREFIX}{dag_name}"
+    res = requests.post(f"{GITHUB_API}/repos/{owner}/{repo}/pulls", json=data, headers=headers)
 
-    create_branch(branch, base_sha)
-    upload_dag(branch, f"dags/{dag_name}.py", dag_code, f"Add DAG {dag_name}")
-    return create_pull_request(branch, dag_name)
+    if res.status_code not in (200, 201):
+        raise Exception(f"❌ Failed to create PR: {res.status_code} - {res.json().get('message')}")
 
+    pr_url = res.json()["html_url"]
+    print(f"✅ Pull Request created: {pr_url}")
+    return pr_url

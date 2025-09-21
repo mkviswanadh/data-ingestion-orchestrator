@@ -1,0 +1,10 @@
+langchain==0.1.13
+langchain-community==0.0.32
+sqlalchemy
+pymysql
+streamlit
+ollama
+matplotlib
+seaborn
+ydata_profiling
+mysql-connector-python

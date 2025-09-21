@@ -1,0 +1,8 @@
+Source,DB_Name,Table_Name,Domain,Description
+Oracle,Transaction,Daily_transactions,Transactions,CASA transactions
+Oracle,Customer,Demographic,customer,customer demographic details
+Oracle,Accounts,general_acc_master,Accounts,CASA Account details
+Oracle,FX,sys_tran_daily,FX,All Fx related data
+Mongo,AECB,aecb_info,AECB,AECB system info
+Oracle,NI,cards_info,Cards,All cards info
+Oracle,NI,cards_transactions,Cards,All cards transactions
